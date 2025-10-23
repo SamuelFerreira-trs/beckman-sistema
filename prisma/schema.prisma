@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id           String          @id @default(cuid())
+  name         String
+  phone        String
+  email        String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  maintenances MaintenanceOS[]
+
+  @@map("clients")
+}
+
+model MaintenanceOS {
+  id               String    @id @default(cuid())
+  clientId         String
+  client           Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  equipment        String?
+  serviceTitle     String
+  description      String    @db.Text
+  value            Decimal   @db.Decimal(10, 2)
+  internalCost     Decimal?  @db.Decimal(10, 2)
+  status           String    @default("ABERTA")
+  openedAt         DateTime  @default(now())
+  closedAt         DateTime?
+  nextReminderAt   DateTime?
+  nextReminderStep String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@map("maintenance_orders")
+}
