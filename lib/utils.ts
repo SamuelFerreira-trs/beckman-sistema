@@ -35,3 +35,15 @@ export function formatCurrency(value: number | string | null | undefined): strin
     currency: "BRL",
   })
 }
+
+export function calculateTotalCosts(costs: Array<{ name: string; value: number }>): number {
+  if (!costs || costs.length === 0) return 0
+  return costs.reduce((total, cost) => total + (cost.value || 0), 0)
+}
+
+export function calculateNextMaintenanceDate(deliveryDate: string | Date): Date {
+  const delivery = typeof deliveryDate === "string" ? new Date(deliveryDate) : deliveryDate
+  const nextMaintenance = new Date(delivery)
+  nextMaintenance.setMonth(nextMaintenance.getMonth() + 4)
+  return nextMaintenance
+}

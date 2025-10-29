@@ -20,21 +20,25 @@ model Client {
 }
 
 model MaintenanceOS {
-  id               String    @id @default(cuid())
-  clientId         String
-  client           Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  equipment        String?
-  serviceTitle     String
-  description      String    @db.Text
-  value            Decimal   @db.Decimal(10, 2)
-  internalCost     Decimal?  @db.Decimal(10, 2)
-  status           String    @default("ABERTA")
-  openedAt         DateTime  @default(now())
-  closedAt         DateTime?
-  nextReminderAt   DateTime?
-  nextReminderStep String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id                  String    @id @default(cuid())
+  clientId            String
+  client              Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  equipment           String?
+  serviceTitle        String
+  description         String    @db.Text
+  value               Decimal   @db.Decimal(10, 2)
+  internalCost        Decimal?  @db.Decimal(10, 2) // Deprecated, kept for backward compatibility
+  costs               Json      @default("[]") // Array of { name: string, value: number }
+  status              String    @default("ABERTA")
+  startDate           DateTime  @default(now())
+  deliveryDate        DateTime?
+  nextMaintenanceDate DateTime?
+  openedAt            DateTime  @default(now())
+  closedAt            DateTime?
+  nextReminderAt      DateTime?
+  nextReminderStep    String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   @@map("maintenance_orders")
 }

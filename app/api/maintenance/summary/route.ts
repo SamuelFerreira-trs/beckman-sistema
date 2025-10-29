@@ -21,11 +21,19 @@ export async function GET(request: Request) {
     const result = await sql`
       SELECT 
         COALESCE(SUM(value), 0) as total_revenue,
-        COALESCE(SUM(internal_cost), 0) as total_costs,
+        COALESCE(
+          SUM(
+            (
+              SELECT COALESCE(SUM((cost->>'value')::numeric), 0)
+              FROM jsonb_array_elements(COALESCE(costs, '[]'::jsonb)) AS cost
+            )
+          ), 
+          0
+        ) as total_costs,
         COUNT(*) as order_count
       FROM maintenance_orders
-      WHERE opened_at >= ${startDate} AND opened_at <= ${endDate}
-      AND status = 'CONCLUIDA'
+      WHERE start_date >= ${startDate} AND start_date <= ${endDate}
+      AND status IN ('COMPLETED', 'CONCLUIDA')
     `
 
     console.log("[v0] Query result:", result)

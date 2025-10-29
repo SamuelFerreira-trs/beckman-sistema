@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { sql } from "@/lib/db"
 import { maintenanceSchema } from "@/lib/validations"
+import { calculateNextMaintenanceDate } from "@/lib/utils"
 
 export async function GET(request: Request) {
   try {
@@ -21,7 +22,7 @@ export async function GET(request: Request) {
           m.equipment ILIKE ${searchTerm} OR
           m.description ILIKE ${searchTerm} OR
           c.name ILIKE ${searchTerm}
-        ORDER BY m.opened_at DESC
+        ORDER BY m.start_date DESC
       `
     } else {
       maintenances = await sql`
@@ -30,7 +31,7 @@ export async function GET(request: Request) {
           json_build_object('id', c.id, 'name', c.name) as client
         FROM maintenance_orders m
         JOIN clients c ON m.client_id = c.id
-        ORDER BY m.opened_at DESC
+        ORDER BY m.start_date DESC
       `
     }
 
@@ -48,14 +49,26 @@ export async function POST(request: Request) {
 
     const id = `maint_${Date.now()}`
     const now = new Date()
-    const nextReminderAt = new Date(now)
+
+    const startDate = validatedData.startDate ? new Date(validatedData.startDate) : now
+
+    let nextMaintenanceDate = null
+    if (validatedData.deliveryDate) {
+      nextMaintenanceDate = validatedData.nextMaintenanceDate
+        ? new Date(validatedData.nextMaintenanceDate)
+        : calculateNextMaintenanceDate(validatedData.deliveryDate)
+    }
+
+    const nextReminderAt = new Date(startDate)
     nextReminderAt.setMonth(nextReminderAt.getMonth() + 4)
+
+    const costsJson = JSON.stringify(validatedData.costs || [])
 
     await sql`
       INSERT INTO maintenance_orders (
         id, client_id, equipment, service_title, description, 
-        value, internal_cost, status, opened_at, next_reminder_at, 
-        next_reminder_step, created_at, updated_at
+        value, costs, status, start_date, delivery_date, next_maintenance_date,
+        opened_at, next_reminder_at, next_reminder_step, created_at, updated_at
       )
       VALUES (
         ${id},
@@ -64,9 +77,12 @@ export async function POST(request: Request) {
         ${validatedData.serviceTitle},
         ${validatedData.description},
         ${validatedData.value},
-        ${validatedData.internalCost || null},
-        'ABERTA',
-        ${now},
+        ${costsJson}::jsonb,
+        ${validatedData.status || "ABERTA"},
+        ${startDate},
+        ${validatedData.deliveryDate ? new Date(validatedData.deliveryDate) : null},
+        ${nextMaintenanceDate},
+        ${startDate},
         ${nextReminderAt},
         'M4',
         ${now},

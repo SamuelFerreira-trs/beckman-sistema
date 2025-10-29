@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Filter, X, Save, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { ClientCombobox } from "@/components/clients/client-combobox"
+import { Badge } from "@/components/ui/badge"
 
 export interface FilterValues {
   query: string
@@ -81,9 +83,61 @@ export function MaintenanceFilters({ filters, onFiltersChange, clients }: Mainte
     localStorage.setItem("maintenance-filters", JSON.stringify(updated))
   }
 
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (filters.query) count++
+    if (filters.status !== "all") count++
+    if (filters.clientId && filters.clientId !== "none") count++
+    if (filters.dateFrom || filters.dateTo) count++
+    if (filters.minValue || filters.maxValue) count++
+    return count
+  }, [filters])
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
+      {activeFilterCount > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm text-muted-foreground">Filtros ativos:</span>
+          {filters.query && (
+            <Badge variant="secondary" className="gap-1">
+              Busca: {filters.query}
+              <X className="h-3 w-3 cursor-pointer" onClick={() => onFiltersChange({ ...filters, query: "" })} />
+            </Badge>
+          )}
+          {filters.status !== "all" && (
+            <Badge variant="secondary" className="gap-1">
+              Status: {filters.status}
+              <X className="h-3 w-3 cursor-pointer" onClick={() => onFiltersChange({ ...filters, status: "all" })} />
+            </Badge>
+          )}
+          {filters.clientId && filters.clientId !== "none" && (
+            <Badge variant="secondary" className="gap-1">
+              Cliente selecionado
+              <X className="h-3 w-3 cursor-pointer" onClick={() => onFiltersChange({ ...filters, clientId: "" })} />
+            </Badge>
+          )}
+          {(filters.dateFrom || filters.dateTo) && (
+            <Badge variant="secondary" className="gap-1">
+              Período
+              <X
+                className="h-3 w-3 cursor-pointer"
+                onClick={() => onFiltersChange({ ...filters, dateFrom: "", dateTo: "" })}
+              />
+            </Badge>
+          )}
+          {(filters.minValue || filters.maxValue) && (
+            <Badge variant="secondary" className="gap-1">
+              Valor
+              <X
+                className="h-3 w-3 cursor-pointer"
+                onClick={() => onFiltersChange({ ...filters, minValue: "", maxValue: "" })}
+              />
+            </Badge>
+          )}
+        </div>
+      )}
+
+      <div className="flex items-center gap-3 flex-wrap">
         {/* Search Query */}
         <div className="flex-1">
           <Input
@@ -108,26 +162,28 @@ export function MaintenanceFilters({ filters, onFiltersChange, clients }: Mainte
         </Select>
 
         {/* Client Filter */}
-        <Select value={filters.clientId} onValueChange={(value) => onFiltersChange({ ...filters, clientId: value })}>
-          <SelectTrigger className="w-[200px] bg-card border-border">
-            <SelectValue placeholder="Todos os clientes" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">Todos os clientes</SelectItem>
-            {clients.map((client) => (
-              <SelectItem key={client.id} value={client.id}>
-                {client.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="w-[200px]">
+          <ClientCombobox
+            value={filters.clientId === "none" ? undefined : filters.clientId}
+            onValueChange={(value) => onFiltersChange({ ...filters, clientId: value || "none" })}
+            placeholder="Todos os clientes"
+          />
+        </div>
 
         {/* Advanced Filters */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="gap-2 bg-transparent">
+            <Button variant="outline" className="gap-2 bg-transparent relative">
               <Filter className="h-4 w-4" />
               Mais filtros
+              {activeFilterCount > 0 && (
+                <Badge
+                  variant="default"
+                  className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs"
+                >
+                  {activeFilterCount}
+                </Badge>
+              )}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-80 bg-card border-border" align="end">

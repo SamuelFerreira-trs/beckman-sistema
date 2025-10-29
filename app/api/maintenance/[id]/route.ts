@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { sql } from "@/lib/db"
+import { calculateNextMaintenanceDate } from "@/lib/utils"
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   try {
@@ -7,17 +8,43 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     const now = new Date()
 
     if (body.status) {
-      // Status update (mark as complete)
       if (body.status === "CONCLUIDA") {
+        const deliveryDate = body.deliveryDate ? new Date(body.deliveryDate) : now
+        const nextMaintenanceDate = calculateNextMaintenanceDate(deliveryDate)
+
         await sql`
           UPDATE maintenance_orders
-          SET status = ${body.status}, closed_at = ${now}, updated_at = ${now}
+          SET 
+            status = ${body.status}, 
+            closed_at = ${now}, 
+            delivery_date = ${deliveryDate},
+            next_maintenance_date = ${nextMaintenanceDate},
+            updated_at = ${now}
           WHERE id = ${params.id}
         `
       }
     } else {
-      // Full maintenance update (edit)
-      const { clientId, equipment, serviceTitle, description, value, internalCost } = body
+      const {
+        clientId,
+        equipment,
+        serviceTitle,
+        description,
+        value,
+        costs,
+        startDate,
+        deliveryDate,
+        nextMaintenanceDate,
+        status,
+      } = body
+
+      const costsJson = costs ? JSON.stringify(costs) : "[]"
+
+      let calculatedNextMaintenance = null
+      if (deliveryDate) {
+        calculatedNextMaintenance = nextMaintenanceDate
+          ? new Date(nextMaintenanceDate)
+          : calculateNextMaintenanceDate(deliveryDate)
+      }
 
       await sql`
         UPDATE maintenance_orders
@@ -27,7 +54,11 @@ export async function PATCH(request: Request, { params }: { params: { id: string
           service_title = ${serviceTitle},
           description = ${description},
           value = ${value},
-          internal_cost = ${internalCost || null},
+          costs = ${costsJson}::jsonb,
+          start_date = ${startDate ? new Date(startDate) : null},
+          delivery_date = ${deliveryDate ? new Date(deliveryDate) : null},
+          next_maintenance_date = ${calculatedNextMaintenance},
+          status = ${status || "ABERTA"},
           updated_at = ${now}
         WHERE id = ${params.id}
       `

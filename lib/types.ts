@@ -7,6 +7,11 @@ export interface Client {
   updatedAt: Date
 }
 
+export interface InternalCost {
+  name: string
+  value: number
+}
+
 export interface MaintenanceOS {
   id: string
   clientId: string
@@ -14,8 +19,12 @@ export interface MaintenanceOS {
   serviceTitle: string
   description: string
   value: number
-  internalCost: number | null
+  internalCost: number | null // Deprecated
+  costs: InternalCost[]
   status: "ABERTA" | "CONCLUIDA" | "CANCELADA"
+  startDate: Date
+  deliveryDate: Date | null
+  nextMaintenanceDate: Date | null
   openedAt: Date
   closedAt: Date | null
   nextReminderAt: Date | null

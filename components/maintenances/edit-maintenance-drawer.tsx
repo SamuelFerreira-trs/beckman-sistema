@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ClientCombobox } from "@/components/clients/client-combobox"
 import { maintenanceSchema, type MaintenanceFormData } from "@/lib/validations"
-import type { Client, MaintenanceOS } from "@/lib/types"
+import type { MaintenanceOS } from "@/lib/types"
 
 interface EditMaintenanceDrawerProps {
   maintenance: MaintenanceOS & { client: { id: string; name: string } }
@@ -20,7 +20,6 @@ interface EditMaintenanceDrawerProps {
 
 export function EditMaintenanceDrawer({ maintenance, open, onOpenChange, onSuccess }: EditMaintenanceDrawerProps) {
   const [loading, setLoading] = useState(false)
-  const [clients, setClients] = useState<Client[]>([])
 
   const {
     register,
@@ -28,6 +27,7 @@ export function EditMaintenanceDrawer({ maintenance, open, onOpenChange, onSucce
     formState: { errors },
     setValue,
     reset,
+    watch,
   } = useForm<MaintenanceFormData>({
     resolver: zodResolver(maintenanceSchema),
     defaultValues: {
@@ -40,19 +40,10 @@ export function EditMaintenanceDrawer({ maintenance, open, onOpenChange, onSucce
     },
   })
 
-  useEffect(() => {
-    async function fetchClients() {
-      try {
-        const response = await fetch("/api/clients")
-        const data = await response.json()
-        setClients(data)
-      } catch (error) {
-        console.error("Error fetching clients:", error)
-      }
-    }
+  const clientId = watch("clientId")
 
+  useEffect(() => {
     if (open) {
-      fetchClients()
       // Reset form with current maintenance data
       reset({
         clientId: maintenance.clientId,
@@ -97,18 +88,12 @@ export function EditMaintenanceDrawer({ maintenance, open, onOpenChange, onSucce
             <Label htmlFor="clientId" className="text-foreground">
               Cliente *
             </Label>
-            <Select defaultValue={maintenance.clientId} onValueChange={(value) => setValue("clientId", value)}>
-              <SelectTrigger className="bg-background border-border text-foreground">
-                <SelectValue placeholder="Selecione um cliente" />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-border">
-                {clients.map((client) => (
-                  <SelectItem key={client.id} value={client.id} className="text-foreground focus:bg-secondary">
-                    {client.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <ClientCombobox
+              value={clientId}
+              onValueChange={(value) => setValue("clientId", value)}
+              placeholder="Buscar cliente..."
+              allowCreate={true}
+            />
             {errors.clientId && <p className="text-sm text-destructive">{errors.clientId.message}</p>}
           </div>
 
