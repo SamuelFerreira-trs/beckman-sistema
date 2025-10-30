@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { ClientCombobox } from "@/components/clients/client-combobox"
 import { maintenanceSchema, type MaintenanceFormData } from "@/lib/validations"
 import { calculateTotalCosts } from "@/lib/utils"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 
 export function NewMaintenanceDrawer({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
@@ -33,6 +34,7 @@ export function NewMaintenanceDrawer({ children }: { children: React.ReactNode }
     defaultValues: {
       costs: [],
       startDate: new Date().toISOString().split("T")[0],
+      status: "ABERTA",
     },
   })
 
@@ -153,6 +155,22 @@ export function NewMaintenanceDrawer({ children }: { children: React.ReactNode }
                 className="bg-background border-border text-foreground"
               />
               {errors.value && <p className="text-sm text-destructive">{errors.value.message}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="status" className="text-foreground">
+                Status
+              </Label>
+              <Select value={watch("status") || "ABERTA"} onValueChange={(value) => setValue("status", value as any)}>
+                <SelectTrigger className="w-full bg-background border-border text-foreground">
+                  <SelectValue placeholder="Selecione o status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ABERTA">Aberta</SelectItem>
+                  <SelectItem value="CONCLUIDA">Concluída</SelectItem>
+                  <SelectItem value="CANCELADA">Cancelada</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

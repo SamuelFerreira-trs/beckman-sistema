@@ -100,6 +100,18 @@ export function ClientCombobox({
     setTimeout(() => inputRef.current?.focus(), 0)
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Escape") {
+      if (selectedClient) {
+        handleClear(e as any)
+      } else {
+        setOpen(false)
+      }
+    } else if (e.key === "Enter" && !selectedClient) {
+      setOpen(true)
+    }
+  }
+
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -117,10 +129,20 @@ export function ClientCombobox({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Search
+            className={cn(
+              "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none transition-colors duration-200",
+              selectedClient ? "text-primary" : "text-muted-foreground",
+            )}
+          />
           <input
             ref={inputRef}
             type="text"
+            role="combobox"
+            aria-expanded={open}
+            aria-controls="client-listbox"
+            aria-autocomplete="list"
+            aria-label="Buscar cliente"
             value={displayValue}
             onChange={(e) => {
               if (!selectedClient) {
@@ -133,14 +155,17 @@ export function ClientCombobox({
                 setOpen(true)
               }
             }}
+            onKeyDown={handleKeyDown}
             placeholder={selectedClient ? "" : placeholder}
             readOnly={!!selectedClient}
             className={cn(
-              "flex h-10 w-full rounded-md border border-border bg-background pl-9 pr-10 py-2 text-sm",
+              "flex h-10 w-full rounded-md border bg-background pl-9 pr-10 py-2 text-sm transition-all duration-200",
               "placeholder:text-muted-foreground",
-              "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
+              "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:border-primary",
               "disabled:cursor-not-allowed disabled:opacity-50",
-              selectedClient && "cursor-pointer",
+              selectedClient
+                ? "cursor-pointer border-primary/50 bg-primary/5 font-medium"
+                : "border-border hover:border-primary/30",
               className,
             )}
           />
@@ -148,14 +173,25 @@ export function ClientCombobox({
             <button
               type="button"
               onClick={handleClear}
-              className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Limpar seleção"
+              className={cn(
+                "absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-sm",
+                "text-muted-foreground hover:text-foreground hover:bg-muted",
+                "transition-all duration-200 ease-in-out",
+                "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1",
+                "animate-in fade-in zoom-in-95",
+              )}
             >
               <X className="h-4 w-4" />
             </button>
           )}
         </div>
       </PopoverTrigger>
-      <PopoverContent className="w-[400px] p-0 bg-card border-border rounded-lg" align="start">
+      <PopoverContent
+        className="w-[400px] p-0 bg-card border-border rounded-lg shadow-lg"
+        align="start"
+        id="client-listbox"
+      >
         <Command className="bg-card">
           <CommandList className="max-h-[320px] py-2">
             {loading ? (

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { MoreHorizontal, CheckCircle, Clock, Pencil, Trash2 } from "lucide-react"
+import { MoreHorizontal, CheckCircle, Pencil, Trash2 } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import {
@@ -168,100 +168,106 @@ export function MaintenancesTable() {
           </p>
         </div>
       ) : (
-        <div className="rounded-lg border border-border bg-card">
+        <div className="rounded-lg border border-border bg-card overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="border-border hover:bg-secondary/50">
-                <TableHead className="text-muted-foreground">Data</TableHead>
+                <TableHead className="text-muted-foreground">Data Início</TableHead>
                 <TableHead className="text-muted-foreground">Cliente</TableHead>
                 <TableHead className="text-muted-foreground">Serviço</TableHead>
                 <TableHead className="text-muted-foreground">Valor</TableHead>
                 <TableHead className="text-muted-foreground">Custo</TableHead>
                 <TableHead className="text-muted-foreground">Status</TableHead>
-                <TableHead className="text-muted-foreground">Próximo Lembrete</TableHead>
+                <TableHead className="text-muted-foreground">Entrega</TableHead>
+                <TableHead className="text-muted-foreground">Próxima Manutenção</TableHead>
                 <TableHead className="text-right text-muted-foreground">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredMaintenances.map((maintenance) => (
-                <TableRow key={maintenance.id} className="border-border hover:bg-secondary/30">
-                  <TableCell className="text-foreground">{formatDate(maintenance.openedAt)}</TableCell>
-                  <TableCell className="font-medium text-foreground">{maintenance.client.name}</TableCell>
-                  <TableCell className="text-foreground">{maintenance.serviceTitle}</TableCell>
-                  <TableCell className="text-foreground">{formatCurrency(maintenance.value)}</TableCell>
-                  <TableCell className="text-foreground">{formatCurrency(maintenance.internalCost)}</TableCell>
-                  <TableCell>
-                    <span
-                      className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${
-                        maintenance.status === "CONCLUIDA"
-                          ? "bg-primary/20 text-primary"
-                          : maintenance.status === "ABERTA"
-                            ? "bg-accent/20 text-accent"
-                            : "bg-destructive/20 text-destructive"
-                      }`}
-                    >
-                      {maintenance.status}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {maintenance.nextReminderAt ? (
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {formatDate(maintenance.nextReminderAt)}
-                        <span className="text-xs">({maintenance.nextReminderStep})</span>
-                      </div>
-                    ) : (
-                      "-"
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0 text-foreground hover:bg-secondary">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-card border-border">
-                        <DropdownMenuItem
-                          onClick={() => setEditingMaintenance(maintenance)}
-                          className="text-foreground focus:bg-secondary focus:text-foreground"
-                        >
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Editar
-                        </DropdownMenuItem>
-                        {maintenance.status === "ABERTA" && (
+              {filteredMaintenances.map((maintenance) => {
+                const isNextMaintenanceSoon = maintenance.nextMaintenanceDate
+                  ? new Date(maintenance.nextMaintenanceDate).getTime() - new Date().getTime() < 7 * 24 * 60 * 60 * 1000
+                  : false
+
+                return (
+                  <TableRow
+                    key={maintenance.id}
+                    className="border-border hover:bg-[#2E3135] transition-colors duration-150"
+                  >
+                    <TableCell className="text-foreground">
+                      {maintenance.startDate ? formatDate(maintenance.startDate) : "-"}
+                    </TableCell>
+                    <TableCell className="font-medium text-foreground">{maintenance.client.name}</TableCell>
+                    <TableCell className="text-foreground">{maintenance.serviceTitle}</TableCell>
+                    <TableCell className="text-foreground">{formatCurrency(maintenance.value)}</TableCell>
+                    <TableCell className="text-foreground">
+                      {maintenance.costs && maintenance.costs.length > 0
+                        ? formatCurrency(maintenance.costs.reduce((sum, cost) => sum + cost.value, 0))
+                        : "-"}
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${
+                          maintenance.status === "CONCLUIDA"
+                            ? "bg-green-500/20 text-green-500"
+                            : maintenance.status === "ABERTA"
+                              ? "bg-gray-500/20 text-gray-400"
+                              : "bg-destructive/20 text-destructive"
+                        }`}
+                      >
+                        {maintenance.status === "ABERTA"
+                          ? "Aberta"
+                          : maintenance.status === "CONCLUIDA"
+                            ? "Concluída"
+                            : "Cancelada"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-foreground">
+                      {maintenance.deliveryDate ? formatDate(maintenance.deliveryDate) : "-"}
+                    </TableCell>
+                    <TableCell className={isNextMaintenanceSoon ? "text-yellow-500 font-medium" : "text-foreground"}>
+                      {maintenance.nextMaintenanceDate ? formatDate(maintenance.nextMaintenanceDate) : "-"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0 text-foreground hover:bg-secondary">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-card border-border">
                           <DropdownMenuItem
-                            onClick={() => handleMarkComplete(maintenance.id)}
+                            onClick={() => setEditingMaintenance(maintenance)}
                             className="text-foreground focus:bg-secondary focus:text-foreground"
                           >
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                            Marcar como concluída
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Editar
                           </DropdownMenuItem>
-                        )}
-                        {maintenance.nextReminderStep && (
+                          {maintenance.status === "ABERTA" && (
+                            <DropdownMenuItem
+                              onClick={() => handleMarkComplete(maintenance.id)}
+                              className="text-foreground focus:bg-secondary focus:text-foreground"
+                            >
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Marcar como concluída
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator className="bg-border" />
                           <DropdownMenuItem
-                            onClick={() => handleAdvanceReminder(maintenance.id, maintenance.nextReminderStep)}
-                            className="text-foreground focus:bg-secondary focus:text-foreground"
+                            onClick={() =>
+                              setDeletingMaintenance({ id: maintenance.id, title: maintenance.serviceTitle })
+                            }
+                            className="text-destructive focus:bg-destructive/10 focus:text-destructive"
                           >
-                            <Clock className="mr-2 h-4 w-4" />
-                            Avançar lembrete
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Excluir
                           </DropdownMenuItem>
-                        )}
-                        <DropdownMenuSeparator className="bg-border" />
-                        <DropdownMenuItem
-                          onClick={() =>
-                            setDeletingMaintenance({ id: maintenance.id, title: maintenance.serviceTitle })
-                          }
-                          className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>
