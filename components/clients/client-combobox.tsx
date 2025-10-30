@@ -7,7 +7,6 @@ import { Search, Plus, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { NewClientDialog } from "@/components/clients/new-client-dialog"
 
 interface Client {
@@ -37,8 +36,27 @@ export function ClientCombobox({
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
   const debounceTimerRef = useRef<NodeJS.Timeout>()
   const selectedClient = clients.find((client) => client.id === value)
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false)
+      }
+    }
+
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside)
+      return () => document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [open])
 
   useEffect(() => {
     async function fetchClients() {
@@ -59,16 +77,11 @@ export function ClientCombobox({
 
   useEffect(() => {
     if (selectedClient && search !== selectedClient.name) {
-      // Use requestAnimationFrame to batch state updates
-      requestAnimationFrame(() => {
-        setSearch(selectedClient.name)
-      })
+      setSearch(selectedClient.name)
     } else if (!value && search) {
-      requestAnimationFrame(() => {
-        setSearch("")
-      })
+      setSearch("")
     }
-  }, [value, selectedClient]) // Only depend on selectedClient
+  }, [value, selectedClient]) // Removed unnecessary dependency
 
   const filteredClients = useMemo(() => {
     if (!search.trim() || value) return clients
@@ -81,7 +94,7 @@ export function ClientCombobox({
         client.email?.toLowerCase().includes(searchLower)
       )
     })
-  }, [clients, search, value]) // Use value instead of selectedClient
+  }, [clients, search, value])
 
   const recentClients = useMemo(() => {
     if (typeof window === "undefined") return []
@@ -99,10 +112,7 @@ export function ClientCombobox({
       }
 
       onValueChange(clientId)
-
-      requestAnimationFrame(() => {
-        setOpen(false)
-      })
+      setOpen(false)
 
       if (typeof window !== "undefined") {
         const recent = localStorage.getItem("recent-clients")
@@ -119,10 +129,8 @@ export function ClientCombobox({
       e.stopPropagation()
       onValueChange("")
       setSearch("")
-      requestAnimationFrame(() => {
-        setOpen(true)
-        setTimeout(() => inputRef.current?.focus(), 0)
-      })
+      setOpen(true)
+      setTimeout(() => inputRef.current?.focus(), 0)
     },
     [onValueChange],
   )
@@ -174,168 +182,163 @@ export function ClientCombobox({
   }
 
   const displayValue = search
-
   const showRecentClients = !search && !selectedClient && recentClients.length > 0
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <div className="relative">
-          <Search
-            className={cn(
-              "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none transition-colors duration-200",
-              selectedClient ? "text-primary" : "text-muted-foreground",
-            )}
-          />
-          <input
-            ref={inputRef}
-            type="text"
-            role="combobox"
-            aria-expanded={open}
-            aria-controls="client-listbox"
-            aria-autocomplete="list"
-            aria-label="Buscar cliente"
-            value={displayValue}
-            onChange={handleSearchChange}
-            onFocus={() => {
-              setOpen(true)
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder={selectedClient ? selectedClient.name : placeholder}
-            readOnly={!!selectedClient}
-            className={cn(
-              "flex h-10 w-full rounded-md border bg-background pl-9 pr-10 py-2 text-sm transition-all duration-200",
-              "placeholder:text-muted-foreground",
-              "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:border-primary",
-              "disabled:cursor-not-allowed disabled:opacity-50",
-              selectedClient
-                ? "cursor-pointer border-primary/50 bg-primary/5 font-medium"
-                : "border-border hover:border-primary/30",
-              className,
-            )}
-          />
-          {selectedClient && (
-            <button
-              type="button"
-              onClick={handleClear}
-              aria-label="Limpar seleção"
-              className={cn(
-                "absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-sm",
-                "text-muted-foreground hover:text-foreground hover:bg-muted",
-                "transition-all duration-200 ease-in-out",
-                "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1",
-                "animate-in fade-in zoom-in-95",
-              )}
-            >
-              <X className="h-4 w-4" />
-            </button>
+    <div className="relative">
+      <div className="relative">
+        <Search
+          className={cn(
+            "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none transition-colors duration-200",
+            selectedClient ? "text-primary" : "text-muted-foreground",
           )}
-        </div>
-      </PopoverTrigger>
-      <PopoverContent
-        className="w-[var(--radix-popover-trigger-width)] p-0 bg-card border-border rounded-lg shadow-lg"
-        align="start"
-        id="client-listbox"
-        sideOffset={4}
-        collisionPadding={8}
-      >
-        <Command className="bg-card">
-          <CommandList className="h-[320px] py-2 overflow-y-auto">
-            {loading ? (
-              <div className="py-6 text-center text-sm text-muted-foreground">Carregando clientes...</div>
-            ) : (
-              <>
-                {showRecentClients && (
-                  <CommandGroup
-                    heading="Recentes"
-                    className="[&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-muted-foreground"
-                  >
-                    {recentClients.map((client) => (
-                      <CommandItem
-                        key={client.id}
-                        value={client.id}
-                        onSelect={() => handleSelect(client.id)}
-                        className="px-3 py-2 mx-2 rounded-md cursor-pointer transition-colors duration-150 hover:bg-[#2E3135] aria-selected:bg-[#2E3135] data-[selected=true]:bg-[#2E3135]"
-                      >
-                        <div className="flex items-center gap-2 w-full">
-                          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-medium">
-                            {getInitials(client.name)}
-                          </div>
-                          <div className="flex flex-col flex-1 min-w-0">
-                            <span className="text-sm text-foreground truncate">{client.name}</span>
-                            {(client.phone || client.email) && (
-                              <span className="text-xs text-[#A1A1AA] truncate">{client.phone || client.email}</span>
-                            )}
-                          </div>
-                        </div>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                )}
-
-                {filteredClients.length === 0 ? (
-                  <CommandEmpty>
-                    <div className="py-6 text-center">
-                      <p className="text-sm text-muted-foreground mb-3">Nenhum cliente encontrado.</p>
-                      {allowCreate && (
-                        <NewClientDialog>
-                          <Button variant="outline" size="sm" className="gap-2 bg-transparent">
-                            <Plus className="h-4 w-4" />
-                            Criar novo cliente
-                          </Button>
-                        </NewClientDialog>
-                      )}
-                    </div>
-                  </CommandEmpty>
-                ) : (
-                  <CommandGroup
-                    heading={
-                      showRecentClients
-                        ? "Todos os clientes"
-                        : search
-                          ? `${filteredClients.length} resultado${filteredClients.length !== 1 ? "s" : ""}`
-                          : "Todos os clientes"
-                    }
-                    className="[&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:mt-4"
-                  >
-                    {filteredClients.map((client) => (
-                      <CommandItem
-                        key={client.id}
-                        value={client.id}
-                        onSelect={() => handleSelect(client.id)}
-                        className="px-3 py-2 mx-2 rounded-md cursor-pointer transition-colors duration-150 hover:bg-[#2E3135] aria-selected:bg-[#2E3135] data-[selected=true]:bg-[#2E3135]"
-                      >
-                        <div className="flex items-center gap-2 w-full">
-                          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-medium">
-                            {getInitials(client.name)}
-                          </div>
-                          <div className="flex flex-col flex-1 min-w-0">
-                            <span className="text-sm text-foreground truncate">{client.name}</span>
-                            {(client.phone || client.email) && (
-                              <span className="text-xs text-[#A1A1AA] truncate">{client.phone || client.email}</span>
-                            )}
-                          </div>
-                        </div>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                )}
-
-                {allowCreate && (
-                  <div className="border-t border-border p-2 mt-2">
-                    <NewClientDialog>
-                      <Button variant="ghost" size="sm" className="w-full gap-2 justify-start">
-                        <Plus className="h-4 w-4" />
-                        Criar novo cliente
-                      </Button>
-                    </NewClientDialog>
-                  </div>
-                )}
-              </>
+        />
+        <input
+          ref={inputRef}
+          type="text"
+          role="combobox"
+          aria-expanded={open}
+          aria-controls="client-listbox"
+          aria-autocomplete="list"
+          aria-label="Buscar cliente"
+          value={displayValue}
+          onChange={handleSearchChange}
+          onFocus={() => setOpen(true)}
+          onKeyDown={handleKeyDown}
+          placeholder={selectedClient ? selectedClient.name : placeholder}
+          readOnly={!!selectedClient}
+          className={cn(
+            "flex h-10 w-full rounded-md border bg-background pl-9 pr-10 py-2 text-sm transition-all duration-200",
+            "placeholder:text-muted-foreground",
+            "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:border-primary",
+            "disabled:cursor-not-allowed disabled:opacity-50",
+            selectedClient
+              ? "cursor-pointer border-primary/50 bg-primary/5 font-medium"
+              : "border-border hover:border-primary/30",
+            className,
+          )}
+        />
+        {selectedClient && (
+          <button
+            type="button"
+            onClick={handleClear}
+            aria-label="Limpar seleção"
+            className={cn(
+              "absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-sm",
+              "text-muted-foreground hover:text-foreground hover:bg-muted",
+              "transition-all duration-200 ease-in-out",
+              "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1",
             )}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <div
+          ref={dropdownRef}
+          id="client-listbox"
+          className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-lg animate-in fade-in-0 zoom-in-95"
+        >
+          <Command className="bg-card">
+            <CommandList className="max-h-[320px] py-2 overflow-y-auto">
+              {loading ? (
+                <div className="py-6 text-center text-sm text-muted-foreground">Carregando clientes...</div>
+              ) : (
+                <>
+                  {showRecentClients && (
+                    <CommandGroup
+                      heading="Recentes"
+                      className="[&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-muted-foreground"
+                    >
+                      {recentClients.map((client) => (
+                        <CommandItem
+                          key={client.id}
+                          value={client.id}
+                          onSelect={() => handleSelect(client.id)}
+                          className="px-3 py-2 mx-2 rounded-md cursor-pointer transition-colors duration-150 hover:bg-[#2E3135] aria-selected:bg-[#2E3135] data-[selected=true]:bg-[#2E3135]"
+                        >
+                          <div className="flex items-center gap-2 w-full">
+                            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-medium">
+                              {getInitials(client.name)}
+                            </div>
+                            <div className="flex flex-col flex-1 min-w-0">
+                              <span className="text-sm text-foreground truncate">{client.name}</span>
+                              {(client.phone || client.email) && (
+                                <span className="text-xs text-[#A1A1AA] truncate">{client.phone || client.email}</span>
+                              )}
+                            </div>
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
+
+                  {filteredClients.length === 0 ? (
+                    <CommandEmpty>
+                      <div className="py-6 text-center">
+                        <p className="text-sm text-muted-foreground mb-3">Nenhum cliente encontrado.</p>
+                        {allowCreate && (
+                          <NewClientDialog>
+                            <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+                              <Plus className="h-4 w-4" />
+                              Criar novo cliente
+                            </Button>
+                          </NewClientDialog>
+                        )}
+                      </div>
+                    </CommandEmpty>
+                  ) : (
+                    <CommandGroup
+                      heading={
+                        showRecentClients
+                          ? "Todos os clientes"
+                          : search
+                            ? `${filteredClients.length} resultado${filteredClients.length !== 1 ? "s" : ""}`
+                            : "Todos os clientes"
+                      }
+                      className="[&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:mt-4"
+                    >
+                      {filteredClients.map((client) => (
+                        <CommandItem
+                          key={client.id}
+                          value={client.id}
+                          onSelect={() => handleSelect(client.id)}
+                          className="px-3 py-2 mx-2 rounded-md cursor-pointer transition-colors duration-150 hover:bg-[#2E3135] aria-selected:bg-[#2E3135] data-[selected=true]:bg-[#2E3135]"
+                        >
+                          <div className="flex items-center gap-2 w-full">
+                            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-medium">
+                              {getInitials(client.name)}
+                            </div>
+                            <div className="flex flex-col flex-1 min-w-0">
+                              <span className="text-sm text-foreground truncate">{client.name}</span>
+                              {(client.phone || client.email) && (
+                                <span className="text-xs text-[#A1A1AA] truncate">{client.phone || client.email}</span>
+                              )}
+                            </div>
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
+
+                  {allowCreate && (
+                    <div className="border-t border-border p-2 mt-2">
+                      <NewClientDialog>
+                        <Button variant="ghost" size="sm" className="w-full gap-2 justify-start">
+                          <Plus className="h-4 w-4" />
+                          Criar novo cliente
+                        </Button>
+                      </NewClientDialog>
+                    </div>
+                  )}
+                </>
+              )}
+            </CommandList>
+          </Command>
+        </div>
+      )}
+    </div>
   )
 }
