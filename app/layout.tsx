@@ -20,6 +20,33 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Suppress ResizeObserver loop errors
+              const resizeObserverErr = window.ResizeObserver;
+              window.ResizeObserver = class ResizeObserver extends resizeObserverErr {
+                constructor(callback) {
+                  super((entries, observer) => {
+                    requestAnimationFrame(() => {
+                      callback(entries, observer);
+                    });
+                  });
+                }
+              };
+              
+              // Also catch any uncaught errors
+              window.addEventListener('error', (e) => {
+                if (e.message && e.message.includes('ResizeObserver')) {
+                  e.stopImmediatePropagation();
+                  return true;
+                }
+              });
+            `,
+          }}
+        />
+      </head>
       <body className={`font-sans antialiased`}>
         {children}
         <Analytics />

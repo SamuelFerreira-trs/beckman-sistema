@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useMemo, useRef } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { Search, Plus, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -37,6 +37,8 @@ export function ClientCombobox({
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
+  const debounceTimerRef = useRef<NodeJS.Timeout>()
+  const selectedClient = clients.find((client) => client.id === value)
 
   useEffect(() => {
     async function fetchClients() {
@@ -55,10 +57,21 @@ export function ClientCombobox({
     fetchClients()
   }, [])
 
-  const selectedClient = clients.find((client) => client.id === value)
+  useEffect(() => {
+    if (selectedClient && search !== selectedClient.name) {
+      // Use requestAnimationFrame to batch state updates
+      requestAnimationFrame(() => {
+        setSearch(selectedClient.name)
+      })
+    } else if (!value && search) {
+      requestAnimationFrame(() => {
+        setSearch("")
+      })
+    }
+  }, [value, selectedClient]) // Only depend on selectedClient
 
   const filteredClients = useMemo(() => {
-    if (!search.trim()) return clients
+    if (!search.trim() || value) return clients
 
     const searchLower = search.toLowerCase()
     return clients.filter((client) => {
@@ -68,7 +81,7 @@ export function ClientCombobox({
         client.email?.toLowerCase().includes(searchLower)
       )
     })
-  }, [clients, search])
+  }, [clients, search, value]) // Use value instead of selectedClient
 
   const recentClients = useMemo(() => {
     if (typeof window === "undefined") return []
@@ -78,27 +91,41 @@ export function ClientCombobox({
     return clients.filter((c) => recentIds.includes(c.id)).slice(0, 3)
   }, [clients])
 
-  const handleSelect = (clientId: string) => {
-    onValueChange(clientId)
-    setOpen(false)
-    setSearch("")
+  const handleSelect = useCallback(
+    (clientId: string) => {
+      const client = clients.find((c) => c.id === clientId)
+      if (client) {
+        setSearch(client.name)
+      }
 
-    // Save to recent clients
-    if (typeof window !== "undefined") {
-      const recent = localStorage.getItem("recent-clients")
-      const recentIds = recent ? (JSON.parse(recent) as string[]) : []
-      const updated = [clientId, ...recentIds.filter((id) => id !== clientId)].slice(0, 5)
-      localStorage.setItem("recent-clients", JSON.stringify(updated))
-    }
-  }
+      onValueChange(clientId)
 
-  const handleClear = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    onValueChange("")
-    setSearch("")
-    setOpen(true)
-    setTimeout(() => inputRef.current?.focus(), 0)
-  }
+      requestAnimationFrame(() => {
+        setOpen(false)
+      })
+
+      if (typeof window !== "undefined") {
+        const recent = localStorage.getItem("recent-clients")
+        const recentIds = recent ? (JSON.parse(recent) as string[]) : []
+        const updated = [clientId, ...recentIds.filter((id) => id !== clientId)].slice(0, 5)
+        localStorage.setItem("recent-clients", JSON.stringify(updated))
+      }
+    },
+    [clients, onValueChange],
+  )
+
+  const handleClear = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation()
+      onValueChange("")
+      setSearch("")
+      requestAnimationFrame(() => {
+        setOpen(true)
+        setTimeout(() => inputRef.current?.focus(), 0)
+      })
+    },
+    [onValueChange],
+  )
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Escape") {
@@ -112,6 +139,31 @@ export function ClientCombobox({
     }
   }
 
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (selectedClient) return
+
+    const newValue = e.target.value
+    setSearch(newValue)
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      if (!open) {
+        setOpen(true)
+      }
+    }, 150)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
+  }, [])
+
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -121,9 +173,9 @@ export function ClientCombobox({
       .slice(0, 2)
   }
 
-  const displayValue = selectedClient
-    ? `${selectedClient.name} (${selectedClient.phone || selectedClient.email})`
-    : search
+  const displayValue = search
+
+  const showRecentClients = !search && !selectedClient && recentClients.length > 0
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -144,19 +196,12 @@ export function ClientCombobox({
             aria-autocomplete="list"
             aria-label="Buscar cliente"
             value={displayValue}
-            onChange={(e) => {
-              if (!selectedClient) {
-                setSearch(e.target.value)
-                setOpen(true)
-              }
-            }}
+            onChange={handleSearchChange}
             onFocus={() => {
-              if (!selectedClient) {
-                setOpen(true)
-              }
+              setOpen(true)
             }}
             onKeyDown={handleKeyDown}
-            placeholder={selectedClient ? "" : placeholder}
+            placeholder={selectedClient ? selectedClient.name : placeholder}
             readOnly={!!selectedClient}
             className={cn(
               "flex h-10 w-full rounded-md border bg-background pl-9 pr-10 py-2 text-sm transition-all duration-200",
@@ -188,17 +233,19 @@ export function ClientCombobox({
         </div>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[400px] p-0 bg-card border-border rounded-lg shadow-lg"
+        className="w-[var(--radix-popover-trigger-width)] p-0 bg-card border-border rounded-lg shadow-lg"
         align="start"
         id="client-listbox"
+        sideOffset={4}
+        collisionPadding={8}
       >
         <Command className="bg-card">
-          <CommandList className="max-h-[320px] py-2">
+          <CommandList className="h-[320px] py-2 overflow-y-auto">
             {loading ? (
               <div className="py-6 text-center text-sm text-muted-foreground">Carregando clientes...</div>
             ) : (
               <>
-                {!search && recentClients.length > 0 && (
+                {showRecentClients && (
                   <CommandGroup
                     heading="Recentes"
                     className="[&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-muted-foreground"
@@ -243,9 +290,11 @@ export function ClientCombobox({
                 ) : (
                   <CommandGroup
                     heading={
-                      search
-                        ? `${filteredClients.length} resultado${filteredClients.length !== 1 ? "s" : ""}`
-                        : "Todos os clientes"
+                      showRecentClients
+                        ? "Todos os clientes"
+                        : search
+                          ? `${filteredClients.length} resultado${filteredClients.length !== 1 ? "s" : ""}`
+                          : "Todos os clientes"
                     }
                     className="[&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:mt-4"
                   >
@@ -272,7 +321,7 @@ export function ClientCombobox({
                   </CommandGroup>
                 )}
 
-                {allowCreate && filteredClients.length > 0 && (
+                {allowCreate && (
                   <div className="border-t border-border p-2 mt-2">
                     <NewClientDialog>
                       <Button variant="ghost" size="sm" className="w-full gap-2 justify-start">
