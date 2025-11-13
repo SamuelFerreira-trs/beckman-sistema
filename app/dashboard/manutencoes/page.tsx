@@ -1,11 +1,16 @@
+"use client"
+
 import { Suspense } from "react"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { MaintenancesTable } from "@/components/maintenances/maintenances-table"
 import { MaintenanceSummaryCards } from "@/components/maintenances/maintenance-summary-cards"
-import { NewMaintenanceDrawer } from "@/components/maintenances/new-maintenance-drawer"
+import { MaintenanceFormDrawer } from "@/components/maintenances/maintenance-form-drawer"
+import { useState } from "react"
 
 export default function ManutencoesPage() {
+  const [isCreateDrawerOpen, setIsCreateDrawerOpen] = useState(false)
+
   return (
     <div className="flex flex-col">
       {/* Header */}
@@ -15,12 +20,12 @@ export default function ManutencoesPage() {
             <h1 className="text-3xl font-semibold text-foreground">Manutenções</h1>
             <p className="mt-1 text-sm text-muted-foreground">Gerencie ordens de serviço e acompanhe o faturamento</p>
           </div>
-          <NewMaintenanceDrawer>
+          <MaintenanceFormDrawer mode="create" open={isCreateDrawerOpen} onOpenChange={setIsCreateDrawerOpen}>
             <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
               <Plus className="mr-2 h-4 w-4" />
               Nova manutenção
             </Button>
-          </NewMaintenanceDrawer>
+          </MaintenanceFormDrawer>
         </div>
       </div>
 

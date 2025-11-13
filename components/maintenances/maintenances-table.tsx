@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { MoreHorizontal, CheckCircle, Pencil, Trash2 } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { EditMaintenanceDrawer } from "./edit-maintenance-drawer"
+import { MaintenanceFormDrawer } from "./maintenance-form-drawer"
 import { DeleteMaintenanceDialog } from "./delete-maintenance-dialog"
 import { MaintenanceFilters, type FilterValues } from "./maintenance-filters"
 import { formatDate, formatCurrency } from "@/lib/utils"
@@ -31,6 +31,7 @@ export function MaintenancesTable() {
   const [loading, setLoading] = useState(true)
   const [editingMaintenance, setEditingMaintenance] = useState<MaintenanceWithClient | null>(null)
   const [deletingMaintenance, setDeletingMaintenance] = useState<{ id: string; title: string } | null>(null)
+  const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false)
 
   const [filters, setFilters] = useState<FilterValues>({
     query: "",
@@ -42,7 +43,7 @@ export function MaintenancesTable() {
     maxValue: "",
   })
 
-  const fetchMaintenances = async () => {
+  const fetchMaintenances = useCallback(async () => {
     try {
       const response = await fetch("/api/maintenance")
       const data = await response.json()
@@ -50,9 +51,9 @@ export function MaintenancesTable() {
     } catch (error) {
       console.error("Error fetching maintenances:", error)
     }
-  }
+  }, [])
 
-  const fetchClients = async () => {
+  const fetchClients = useCallback(async () => {
     try {
       const response = await fetch("/api/clients")
       const data = await response.json()
@@ -60,7 +61,7 @@ export function MaintenancesTable() {
     } catch (error) {
       console.error("Error fetching clients:", error)
     }
-  }
+  }, [])
 
   useEffect(() => {
     async function loadData() {
@@ -70,7 +71,7 @@ export function MaintenancesTable() {
     }
 
     loadData()
-  }, [])
+  }, [fetchMaintenances, fetchClients])
 
   useEffect(() => {
     let filtered = [...maintenances]
@@ -119,35 +120,51 @@ export function MaintenancesTable() {
     setFilteredMaintenances(filtered)
   }, [maintenances, filters])
 
-  const handleMarkComplete = async (id: string) => {
-    try {
-      await fetch(`/api/maintenance/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "CONCLUIDA" }),
-      })
-      await fetchMaintenances()
-    } catch (error) {
-      console.error("Error updating maintenance:", error)
-    }
-  }
+  const handleMarkComplete = useCallback(
+    async (id: string) => {
+      try {
+        await fetch(`/api/maintenance/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "CONCLUIDA" }),
+        })
+        await fetchMaintenances()
+      } catch (error) {
+        console.error("Error updating maintenance:", error)
+      }
+    },
+    [fetchMaintenances],
+  )
 
-  const handleAdvanceReminder = async (id: string, currentStep: string | null) => {
-    try {
-      const nextStep = currentStep === "M4" ? "M6" : null
-      await fetch(`/api/maintenance/${id}/reminder`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nextStep }),
-      })
-      await fetchMaintenances()
-    } catch (error) {
-      console.error("Error advancing reminder:", error)
-    }
-  }
+  const handleAdvanceReminder = useCallback(
+    async (id: string, currentStep: string | null) => {
+      try {
+        const nextStep = currentStep === "M4" ? "M6" : null
+        await fetch(`/api/maintenance/${id}/reminder`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nextStep }),
+        })
+        await fetchMaintenances()
+      } catch (error) {
+        console.error("Error advancing reminder:", error)
+      }
+    },
+    [fetchMaintenances],
+  )
+
+  const handleEdit = useCallback((maintenance: MaintenanceWithClient) => {
+    setEditingMaintenance(maintenance)
+    setIsEditDrawerOpen(true)
+  }, [])
 
   if (loading) {
-    return <div className="text-muted-foreground">Carregando manutenções...</div>
+    return (
+      <div className="space-y-4">
+        <div className="h-10 bg-card animate-pulse rounded" />
+        <div className="h-64 bg-card animate-pulse rounded" />
+      </div>
+    )
   }
 
   return (
@@ -237,8 +254,8 @@ export function MaintenancesTable() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="bg-card border-border">
                           <DropdownMenuItem
-                            onClick={() => setEditingMaintenance(maintenance)}
-                            className="text-foreground focus:bg-secondary focus:text-foreground"
+                            onClick={() => handleEdit(maintenance)}
+                            className="text-foreground focus:bg-secondary focus:text-foreground cursor-pointer"
                           >
                             <Pencil className="mr-2 h-4 w-4" />
                             Editar
@@ -246,7 +263,7 @@ export function MaintenancesTable() {
                           {maintenance.status === "ABERTA" && (
                             <DropdownMenuItem
                               onClick={() => handleMarkComplete(maintenance.id)}
-                              className="text-foreground focus:bg-secondary focus:text-foreground"
+                              className="text-foreground focus:bg-secondary focus:text-foreground cursor-pointer"
                             >
                               <CheckCircle className="mr-2 h-4 w-4" />
                               Marcar como concluída
@@ -257,7 +274,7 @@ export function MaintenancesTable() {
                             onClick={() =>
                               setDeletingMaintenance({ id: maintenance.id, title: maintenance.serviceTitle })
                             }
-                            className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                            className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Excluir
@@ -274,10 +291,14 @@ export function MaintenancesTable() {
       )}
 
       {editingMaintenance && (
-        <EditMaintenanceDrawer
-          maintenance={editingMaintenance}
-          open={!!editingMaintenance}
-          onOpenChange={(open) => !open && setEditingMaintenance(null)}
+        <MaintenanceFormDrawer
+          mode="edit"
+          open={isEditDrawerOpen}
+          onOpenChange={(open) => {
+            setIsEditDrawerOpen(open)
+            if (!open) setEditingMaintenance(null)
+          }}
+          initialData={editingMaintenance}
           onSuccess={fetchMaintenances}
         />
       )}

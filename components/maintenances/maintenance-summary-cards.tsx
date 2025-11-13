@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import type { MonthlySummary } from "@/lib/types"
 
 export function MaintenanceSummaryCards() {
@@ -13,24 +14,15 @@ export function MaintenanceSummaryCards() {
     async function fetchSummary() {
       try {
         const currentMonth = new Date().toISOString().slice(0, 7)
-        console.log("[v0] Fetching summary for month:", currentMonth)
-
         const response = await fetch(`/api/maintenance/summary?month=${currentMonth}`)
 
-        console.log("[v0] Response status:", response.status)
-        console.log("[v0] Response ok:", response.ok)
-
         if (!response.ok) {
-          const text = await response.text()
-          console.error("[v0] Error response:", text)
           throw new Error(`HTTP error! status: ${response.status}`)
         }
 
         const data = await response.json()
-        console.log("[v0] Summary data received:", data)
         setSummary(data)
       } catch (error) {
-        console.error("[v0] Error fetching summary:", error)
         setError(error instanceof Error ? error.message : "Erro ao carregar resumo")
       } finally {
         setLoading(false)
@@ -41,7 +33,20 @@ export function MaintenanceSummaryCards() {
   }, [])
 
   if (loading) {
-    return <div className="text-muted-foreground">Carregando resumo...</div>
+    return (
+      <div className="grid gap-6 md:grid-cols-4">
+        {[...Array(4)].map((_, i) => (
+          <Card key={i} className="border-t-2 border-t-primary bg-card border-border">
+            <CardHeader>
+              <Skeleton className="h-4 w-24" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-8 w-32" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    )
   }
 
   if (error) {

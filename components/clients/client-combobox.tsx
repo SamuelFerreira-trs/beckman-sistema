@@ -37,9 +37,9 @@ export function ClientCombobox({
   const [search, setSearch] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const debounceTimerRef = useRef<NodeJS.Timeout>()
   const selectedClient = clients.find((client) => client.id === value)
 
+  // 1. Logic to close dropdown on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -58,6 +58,7 @@ export function ClientCombobox({
     }
   }, [open])
 
+  // 2. Fetch clients on mount
   useEffect(() => {
     async function fetchClients() {
       setLoading(true)
@@ -75,16 +76,23 @@ export function ClientCombobox({
     fetchClients()
   }, [])
 
+  // 3. FIX: Synchronize local search state with external value/client name (Important for forms like EditDrawer)
   useEffect(() => {
-    if (selectedClient && search !== selectedClient.name) {
-      setSearch(selectedClient.name)
-    } else if (!value && search) {
+    if (value && clients.length > 0) {
+      const client = clients.find((c) => c.id === value)
+      if (client && search !== client.name) {
+        setSearch(client.name)
+      }
+    } else if (!value && selectedClient === undefined) {
       setSearch("")
     }
-  }, [value, selectedClient]) // Removed unnecessary dependency
+  }, [value, clients])
 
+  // Filter logic: filters based on local search ONLY if no client is selected.
   const filteredClients = useMemo(() => {
-    if (!search.trim() || value) return clients
+    if (selectedClient) return []
+
+    if (!search.trim()) return clients
 
     const searchLower = search.toLowerCase()
     return clients.filter((client) => {
@@ -94,8 +102,9 @@ export function ClientCombobox({
         client.email?.toLowerCase().includes(searchLower)
       )
     })
-  }, [clients, search, value])
+  }, [clients, search, selectedClient])
 
+  // Recent clients logic remains the same
   const recentClients = useMemo(() => {
     if (typeof window === "undefined") return []
     const recent = localStorage.getItem("recent-clients")
@@ -108,12 +117,13 @@ export function ClientCombobox({
     (clientId: string) => {
       const client = clients.find((c) => c.id === clientId)
       if (client) {
-        setSearch(client.name)
+        setSearch(client.name) // Set local state to selected name for display
       }
 
       onValueChange(clientId)
-      setOpen(false)
+      setOpen(false) // Close dropdown on selection
 
+      // Save to recent clients
       if (typeof window !== "undefined") {
         const recent = localStorage.getItem("recent-clients")
         const recentIds = recent ? (JSON.parse(recent) as string[]) : []
@@ -127,9 +137,9 @@ export function ClientCombobox({
   const handleClear = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation()
-      onValueChange("")
-      setSearch("")
-      setOpen(true)
+      onValueChange("") // Clear external value
+      setSearch("") // Clear search field
+      setOpen(true) // Re-open dropdown for new search
       setTimeout(() => inputRef.current?.focus(), 0)
     },
     [onValueChange],
@@ -142,35 +152,10 @@ export function ClientCombobox({
       } else {
         setOpen(false)
       }
-    } else if (e.key === "Enter" && !selectedClient) {
-      setOpen(true)
+    } else if (e.key === "Enter" && selectedClient) {
+      e.preventDefault()
     }
   }
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (selectedClient) return
-
-    const newValue = e.target.value
-    setSearch(newValue)
-
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current)
-    }
-
-    debounceTimerRef.current = setTimeout(() => {
-      if (!open) {
-        setOpen(true)
-      }
-    }, 150)
-  }
-
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current)
-      }
-    }
-  }, [])
 
   const getInitials = (name: string) => {
     return name
@@ -181,8 +166,9 @@ export function ClientCombobox({
       .slice(0, 2)
   }
 
-  const displayValue = search
-  const showRecentClients = !search && !selectedClient && recentClients.length > 0
+  const displayValue = search // Always display the local search state
+  const showRecentClientsList = !search && !selectedClient && recentClients.length > 0
+  const listToDisplay = showRecentClientsList ? recentClients : filteredClients
 
   return (
     <div className="relative">
@@ -201,11 +187,21 @@ export function ClientCombobox({
           aria-controls="client-listbox"
           aria-autocomplete="list"
           aria-label="Buscar cliente"
+          aria-describedby={selectedClient ? "selected-client" : undefined}
           value={displayValue}
-          onChange={handleSearchChange}
+          onChange={(e) => {
+            if (!selectedClient) {
+              setSearch(e.target.value)
+            }
+            setOpen(true)
+          }}
+          onClick={() => {
+            if (selectedClient) return
+            setOpen(true)
+          }}
           onFocus={() => setOpen(true)}
           onKeyDown={handleKeyDown}
-          placeholder={selectedClient ? selectedClient.name : placeholder}
+          placeholder={!selectedClient ? placeholder : selectedClient.name}
           readOnly={!!selectedClient}
           className={cn(
             "flex h-10 w-full rounded-md border bg-background pl-9 pr-10 py-2 text-sm transition-all duration-200",
@@ -218,6 +214,11 @@ export function ClientCombobox({
             className,
           )}
         />
+        {selectedClient && (
+          <span id="selected-client" className="sr-only">
+            Cliente selecionado: {selectedClient.name}
+          </span>
+        )}
         {selectedClient && (
           <button
             type="button"
@@ -235,7 +236,7 @@ export function ClientCombobox({
         )}
       </div>
 
-      {open && (
+      {open && !selectedClient && (
         <div
           ref={dropdownRef}
           id="client-listbox"
@@ -247,7 +248,7 @@ export function ClientCombobox({
                 <div className="py-6 text-center text-sm text-muted-foreground">Carregando clientes...</div>
               ) : (
                 <>
-                  {showRecentClients && (
+                  {showRecentClientsList && (
                     <CommandGroup
                       heading="Recentes"
                       className="[&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-muted-foreground"
@@ -275,7 +276,7 @@ export function ClientCombobox({
                     </CommandGroup>
                   )}
 
-                  {filteredClients.length === 0 ? (
+                  {listToDisplay.length === 0 && !showRecentClientsList && (
                     <CommandEmpty>
                       <div className="py-6 text-center">
                         <p className="text-sm text-muted-foreground mb-3">Nenhum cliente encontrado.</p>
@@ -289,10 +290,12 @@ export function ClientCombobox({
                         )}
                       </div>
                     </CommandEmpty>
-                  ) : (
+                  )}
+
+                  {listToDisplay.length > 0 && (
                     <CommandGroup
                       heading={
-                        showRecentClients
+                        showRecentClientsList
                           ? "Todos os clientes"
                           : search
                             ? `${filteredClients.length} resultado${filteredClients.length !== 1 ? "s" : ""}`
@@ -300,7 +303,7 @@ export function ClientCombobox({
                       }
                       className="[&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:mt-4"
                     >
-                      {filteredClients.map((client) => (
+                      {listToDisplay.map((client) => (
                         <CommandItem
                           key={client.id}
                           value={client.id}
