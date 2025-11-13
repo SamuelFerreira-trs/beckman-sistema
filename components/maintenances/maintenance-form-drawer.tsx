@@ -208,6 +208,7 @@ export function MaintenanceFormDrawer({
                 onValueChange={(value) => setValue("clientId", value, { shouldDirty: true })}
                 placeholder="Buscar cliente..."
                 allowCreate={true}
+                initialClientName={mode === "edit" && initialData ? initialData.client.name : undefined}
               />
               {getFieldError("clientId") && (
                 <p className="text-sm text-destructive flex items-center gap-1">

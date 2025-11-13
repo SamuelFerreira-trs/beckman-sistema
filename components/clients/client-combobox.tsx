@@ -22,6 +22,7 @@ interface ClientComboboxProps {
   placeholder?: string
   className?: string
   allowCreate?: boolean
+  initialClientName?: string // Add prop to receive client name directly for edit mode
 }
 
 export function ClientCombobox({
@@ -30,6 +31,7 @@ export function ClientCombobox({
   placeholder = "Buscar cliente...",
   className,
   allowCreate = false,
+  initialClientName, // Accept initialClientName prop
 }: ClientComboboxProps) {
   const [open, setOpen] = useState(false)
   const [clients, setClients] = useState<Client[]>([])
@@ -78,17 +80,20 @@ export function ClientCombobox({
 
   // 3. FIX: Synchronize local search state with external value/client name (Important for forms like EditDrawer)
   useEffect(() => {
-    if (value && clients.length > 0) {
-      const client = clients.find((c) => c.id === value)
-      if (client) {
-        // Always set search to client name when value is provided, regardless of current search state
-        setSearch(client.name)
+    if (value) {
+      if (initialClientName) {
+        setSearch(initialClientName)
+      } else if (clients.length > 0) {
+        const client = clients.find((c) => c.id === value)
+        if (client) {
+          setSearch(client.name)
+        }
       }
-    } else if (!value) {
+    } else {
       // Clear search when value is cleared
       setSearch("")
     }
-  }, [value, clients])
+  }, [value, clients, initialClientName]) // Add initialClientName to dependencies
 
   // Filter logic: filters based on local search ONLY if no client is selected.
   const filteredClients = useMemo(() => {
