@@ -80,10 +80,12 @@ export function ClientCombobox({
   useEffect(() => {
     if (value && clients.length > 0) {
       const client = clients.find((c) => c.id === value)
-      if (client && search !== client.name) {
+      if (client) {
+        // Always set search to client name when value is provided, regardless of current search state
         setSearch(client.name)
       }
-    } else if (!value && selectedClient === undefined) {
+    } else if (!value) {
+      // Clear search when value is cleared
       setSearch("")
     }
   }, [value, clients])

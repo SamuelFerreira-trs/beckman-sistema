@@ -96,19 +96,21 @@ export function MaintenanceFormDrawer({
   useEffect(() => {
     if (open) {
       if (mode === "edit" && initialData) {
+        // Reset form with all initialData values
         reset({
           clientId: initialData.clientId,
           equipment: initialData.equipment || "",
           serviceTitle: initialData.serviceTitle || "",
-          description: initialData.description,
-          value: Number(initialData.value),
+          description: initialData.description || "",
+          value: Number(initialData.value) || 0,
           costs: initialData.costs || [],
           startDate: safeDateToInput(initialData.startDate),
           deliveryDate: safeDateToInput(initialData.deliveryDate),
           nextMaintenanceDate: safeDateToInput(initialData.nextMaintenanceDate),
-          status: initialData.status,
+          status: initialData.status || "ABERTA",
         })
       } else if (mode === "create") {
+        // Reset to empty form for create mode
         reset({
           clientId: "",
           equipment: "",
