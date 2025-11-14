@@ -4,10 +4,10 @@ import { SheetTrigger } from "@/components/ui/sheet"
 
 import type React from "react"
 import { useState, useEffect, useMemo, useCallback } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, useFieldArray } from "react-hook-form"
-import { Plus, X, AlertCircle } from "lucide-react"
+import { Plus, X, AlertCircle } from 'lucide-react'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -39,6 +39,19 @@ const safeDateToInput = (date: Date | string | null | undefined): string => {
   }
 }
 
+const createDefaultValues: MaintenanceFormData = {
+  clientId: "",
+  equipment: "",
+  serviceTitle: "",
+  description: "",
+  value: 0,
+  costs: [],
+  startDate: new Date().toISOString().split("T")[0],
+  deliveryDate: "",
+  nextMaintenanceDate: "",
+  status: "ABERTA",
+}
+
 export function MaintenanceFormDrawer({
   mode,
   open,
@@ -51,6 +64,24 @@ export function MaintenanceFormDrawer({
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
+  const formValues = useMemo(() => {
+    if (mode === "edit" && initialData) {
+      return {
+        clientId: initialData.clientId,
+        equipment: initialData.equipment || "",
+        serviceTitle: initialData.serviceTitle || "",
+        description: initialData.description || "",
+        value: Number(initialData.value) || 0,
+        costs: initialData.costs || [],
+        startDate: safeDateToInput(initialData.startDate),
+        deliveryDate: safeDateToInput(initialData.deliveryDate),
+        nextMaintenanceDate: safeDateToInput(initialData.nextMaintenanceDate),
+        status: initialData.status || "ABERTA",
+      }
+    }
+    return createDefaultValues
+  }, [mode, initialData])
+
   const {
     register,
     handleSubmit,
@@ -61,11 +92,7 @@ export function MaintenanceFormDrawer({
     control,
   } = useForm<MaintenanceFormData>({
     resolver: zodResolver(maintenanceSchema),
-    defaultValues: {
-      costs: [],
-      startDate: new Date().toISOString().split("T")[0],
-      status: "ABERTA",
-    },
+    values: formValues,
   })
 
   const { fields, append, remove } = useFieldArray({
@@ -95,38 +122,9 @@ export function MaintenanceFormDrawer({
 
   useEffect(() => {
     if (open) {
-      if (mode === "edit" && initialData) {
-        // Reset form with all initialData values
-        reset({
-          clientId: initialData.clientId,
-          equipment: initialData.equipment || "",
-          serviceTitle: initialData.serviceTitle || "",
-          description: initialData.description || "",
-          value: Number(initialData.value) || 0,
-          costs: initialData.costs || [],
-          startDate: safeDateToInput(initialData.startDate),
-          deliveryDate: safeDateToInput(initialData.deliveryDate),
-          nextMaintenanceDate: safeDateToInput(initialData.nextMaintenanceDate),
-          status: initialData.status || "ABERTA",
-        })
-      } else if (mode === "create") {
-        // Reset to empty form for create mode
-        reset({
-          clientId: "",
-          equipment: "",
-          serviceTitle: "",
-          description: "",
-          value: 0,
-          costs: [],
-          startDate: new Date().toISOString().split("T")[0],
-          deliveryDate: "",
-          nextMaintenanceDate: "",
-          status: "ABERTA",
-        })
-      }
       setError(null)
     }
-  }, [open, mode, initialData, reset])
+  }, [open])
 
   const onSubmit = useCallback(
     async (data: MaintenanceFormData) => {
