@@ -100,10 +100,19 @@ export function MaintenanceFormDrawer({
     name: "costs",
   })
 
-  const costs = watch("costs")
-  const deliveryDate = watch("deliveryDate")
-  const status = watch("status")
-  const value = watch("value")
+  const watchedValues = watch()
+  const {
+    costs,
+    deliveryDate,
+    status,
+    value,
+    serviceTitle,
+    equipment,
+    description,
+    startDate,
+    nextMaintenanceDate,
+    clientId,
+  } = watchedValues
 
   const profitMargin = useMemo(() => {
     const totalCosts = calculateTotalCosts(costs || [])
@@ -202,7 +211,7 @@ export function MaintenanceFormDrawer({
                 Cliente *
               </Label>
               <ClientCombobox
-                value={watch("clientId")}
+                value={clientId}
                 onValueChange={(value) => setValue("clientId", value, { shouldDirty: true })}
                 placeholder="Buscar cliente..."
                 allowCreate={true}
@@ -222,7 +231,8 @@ export function MaintenanceFormDrawer({
               </Label>
               <Input
                 id="equipment"
-                {...register("equipment")}
+                value={equipment || ""}
+                onChange={(e) => setValue("equipment", e.target.value, { shouldDirty: true })}
                 placeholder="Ex: Notebook Dell Inspiron 15"
                 className="bg-background border-border text-foreground"
               />
@@ -234,7 +244,8 @@ export function MaintenanceFormDrawer({
               </Label>
               <Input
                 id="serviceTitle"
-                {...register("serviceTitle")}
+                value={serviceTitle || ""}
+                onChange={(e) => setValue("serviceTitle", e.target.value, { shouldDirty: true })}
                 placeholder="Ex: Troca de HD por SSD"
                 className="bg-background border-border text-foreground"
               />
@@ -252,7 +263,8 @@ export function MaintenanceFormDrawer({
               </Label>
               <Textarea
                 id="description"
-                {...register("description")}
+                value={description || ""}
+                onChange={(e) => setValue("description", e.target.value, { shouldDirty: true })}
                 placeholder="Descreva o que foi consertado"
                 rows={4}
                 className="bg-background border-border text-foreground resize-none"
@@ -273,7 +285,8 @@ export function MaintenanceFormDrawer({
                 id="value"
                 type="number"
                 step="0.01"
-                {...register("value", { valueAsNumber: true })}
+                value={value || 0}
+                onChange={(e) => setValue("value", e.target.valueAsNumber, { shouldDirty: true })}
                 placeholder="0.00"
                 className="bg-background border-border text-foreground"
               />
@@ -391,7 +404,8 @@ export function MaintenanceFormDrawer({
                 <Input
                   id="startDate"
                   type="date"
-                  {...register("startDate")}
+                  value={startDate || ""}
+                  onChange={(e) => setValue("startDate", e.target.value, { shouldDirty: true })}
                   className="bg-background border-border text-foreground"
                 />
               </div>
@@ -403,7 +417,8 @@ export function MaintenanceFormDrawer({
                 <Input
                   id="deliveryDate"
                   type="date"
-                  {...register("deliveryDate")}
+                  value={deliveryDate || ""}
+                  onChange={(e) => setValue("deliveryDate", e.target.value, { shouldDirty: true })}
                   className="bg-background border-border text-foreground"
                 />
                 <p className="text-xs text-muted-foreground">Obrigatório ao concluir</p>
@@ -417,7 +432,8 @@ export function MaintenanceFormDrawer({
               <Input
                 id="nextMaintenanceDate"
                 type="date"
-                {...register("nextMaintenanceDate")}
+                value={nextMaintenanceDate || ""}
+                onChange={(e) => setValue("nextMaintenanceDate", e.target.value, { shouldDirty: true })}
                 className="bg-background border-primary/50 text-foreground"
               />
               <p className="text-xs text-primary">Auto-calculado (+4 meses da entrega), mas pode ser editado</p>
