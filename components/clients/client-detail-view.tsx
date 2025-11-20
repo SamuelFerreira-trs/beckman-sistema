@@ -1,11 +1,12 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowLeft, Mail, Phone, Plus } from "lucide-react"
+import { ArrowLeft, Mail, Phone, Plus, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatDate, formatCurrency } from "@/lib/utils"
 import type { Client, MaintenanceOS } from "@/lib/types"
+import { EditClientDialog } from "@/components/clients/edit-client-dialog"
 
 interface ClientDetailViewProps {
   client: Client
@@ -47,10 +48,18 @@ export function ClientDetailView({ client, maintenances }: ClientDetailViewProps
               )}
             </div>
           </div>
-          <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-            <Plus className="mr-2 h-4 w-4" />
-            Nova manutenção
-          </Button>
+          <div className="flex items-center gap-2">
+            <EditClientDialog client={client}>
+              <Button variant="outline" className="border-border text-foreground hover:bg-secondary bg-transparent">
+                <Pencil className="mr-2 h-4 w-4" />
+                Editar
+              </Button>
+            </EditClientDialog>
+            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+              <Plus className="mr-2 h-4 w-4" />
+              Nova manutenção
+            </Button>
+          </div>
         </div>
       </div>
 

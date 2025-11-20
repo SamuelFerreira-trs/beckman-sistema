@@ -45,15 +45,18 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
+    
     const validatedData = maintenanceSchema.parse(body)
 
     const id = `maint_${Date.now()}`
     const now = new Date()
 
     const startDate = validatedData.startDate ? new Date(validatedData.startDate) : now
+    
+    const deliveryDate = validatedData.deliveryDate ? new Date(validatedData.deliveryDate) : null
 
     let nextMaintenanceDate = null
-    if (validatedData.deliveryDate) {
+    if (deliveryDate) {
       nextMaintenanceDate = validatedData.nextMaintenanceDate
         ? new Date(validatedData.nextMaintenanceDate)
         : calculateNextMaintenanceDate(validatedData.deliveryDate)
@@ -73,14 +76,14 @@ export async function POST(request: Request) {
       VALUES (
         ${id},
         ${validatedData.clientId},
-        ${validatedData.equipment || null},
-        ${validatedData.serviceTitle},
-        ${validatedData.description},
+        ${validatedData.equipment || ''},
+        ${validatedData.serviceTitle || ''},
+        ${validatedData.description || ''},
         ${validatedData.value},
         ${costsJson}::jsonb,
         ${validatedData.status || "ABERTA"},
         ${startDate},
-        ${validatedData.deliveryDate ? new Date(validatedData.deliveryDate) : null},
+        ${deliveryDate},
         ${nextMaintenanceDate},
         ${startDate},
         ${nextReminderAt},
@@ -93,6 +96,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, id })
   } catch (error) {
     console.error("Error creating maintenance:", error)
-    return NextResponse.json({ error: "Erro ao criar manutenção" }, { status: 500 })
+    return NextResponse.json({ 
+      error: "Erro ao criar manutenção",
+      details: error instanceof Error ? error.message : "Unknown error" 
+    }, { status: 500 })
   }
 }

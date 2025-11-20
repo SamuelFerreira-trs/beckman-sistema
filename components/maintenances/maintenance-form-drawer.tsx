@@ -1,7 +1,7 @@
 "use client"
 
 import { SheetTrigger } from "@/components/ui/sheet"
-
+import { CheckCircle } from 'lucide-react'
 import type React from "react"
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useRouter } from 'next/navigation'
@@ -62,25 +62,8 @@ export function MaintenanceFormDrawer({
 }: MaintenanceFormDrawerProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showSuccess, setShowSuccess] = useState(false)
   const router = useRouter()
-
-  const formValues = useMemo(() => {
-    if (mode === "edit" && initialData) {
-      return {
-        clientId: initialData.clientId,
-        equipment: initialData.equipment || "",
-        serviceTitle: initialData.serviceTitle || "",
-        description: initialData.description || "",
-        value: Number(initialData.value) || 0,
-        costs: initialData.costs || [],
-        startDate: safeDateToInput(initialData.startDate),
-        deliveryDate: safeDateToInput(initialData.deliveryDate),
-        nextMaintenanceDate: safeDateToInput(initialData.nextMaintenanceDate),
-        status: initialData.status || "ABERTA",
-      }
-    }
-    return createDefaultValues
-  }, [mode, initialData])
 
   const {
     register,
@@ -92,7 +75,7 @@ export function MaintenanceFormDrawer({
     control,
   } = useForm<MaintenanceFormData>({
     resolver: zodResolver(maintenanceSchema),
-    values: formValues,
+    defaultValues: createDefaultValues,
   })
 
   const { fields, append, remove } = useFieldArray({
@@ -131,9 +114,36 @@ export function MaintenanceFormDrawer({
 
   useEffect(() => {
     if (open) {
-      setError(null)
+      if (mode === 'edit' && initialData) {
+        reset({
+          clientId: initialData.clientId,
+          equipment: initialData.equipment || "",
+          serviceTitle: initialData.serviceTitle || "",
+          description: initialData.description || "",
+          value: Number(initialData.value) || 0,
+          costs: initialData.costs || [],
+          startDate: safeDateToInput(initialData.startDate),
+          deliveryDate: safeDateToInput(initialData.deliveryDate),
+          nextMaintenanceDate: safeDateToInput(initialData.nextMaintenanceDate),
+          status: initialData.status || "ABERTA",
+        });
+      } else if (mode === 'create') {
+        reset(createDefaultValues);
+      }
+      setError(null);
+      setShowSuccess(false);
     }
-  }, [open])
+  }, [open, mode, initialData, reset]);
+
+  const validateField = useCallback((fieldName: keyof MaintenanceFormData) => {
+    const schema = maintenanceSchema.pick({ [fieldName]: true })
+    try {
+      schema.parse({ [fieldName]: watchedValues[fieldName] })
+      return true
+    } catch {
+      return false
+    }
+  }, [watchedValues])
 
   const onSubmit = useCallback(
     async (data: MaintenanceFormData) => {
@@ -144,6 +154,7 @@ export function MaintenanceFormDrawer({
 
       setLoading(true)
       setError(null)
+      setShowSuccess(false)
       try {
         const url = mode === "create" ? "/api/maintenance" : `/api/maintenance/${initialData?.id}`
         const method = mode === "create" ? "POST" : "PATCH"
@@ -159,19 +170,24 @@ export function MaintenanceFormDrawer({
           throw new Error(errorData.error || "Erro ao salvar manutenção")
         }
 
-        onOpenChange(false)
-        if (mode === "create") {
-          router.refresh()
-        } else if (onSuccess) {
-          onSuccess()
-        }
+        const result = await response.json()
+
+        setShowSuccess(true)
+        setTimeout(() => {
+          onOpenChange(false)
+          if (mode === "create") {
+            router.refresh()
+          } else if (onSuccess) {
+            onSuccess()
+          }
+        }, 800)
       } catch (error) {
         setError(error instanceof Error ? error.message : "Erro ao salvar manutenção")
       } finally {
         setLoading(false)
       }
     },
-    [mode, initialData, onOpenChange, router, onSuccess],
+    [mode, initialData, onOpenChange, router, onSuccess, errors, isDirty],
   )
 
   const getFieldError = (fieldName: keyof MaintenanceFormData) => {
@@ -194,8 +210,17 @@ export function MaintenanceFormDrawer({
           </SheetDescription>
         </SheetHeader>
 
+        {showSuccess && (
+          <div className="mt-4 rounded-lg border border-green-500/50 bg-green-500/10 p-3 flex items-start gap-3 animate-in fade-in-0 slide-in-from-top-2">
+            <CheckCircle className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
+            <p className="text-sm text-green-500">
+              {mode === "create" ? "Manutenção criada com sucesso!" : "Alterações salvas com sucesso!"}
+            </p>
+          </div>
+        )}
+
         {error && (
-          <div className="mt-4 rounded-lg border border-destructive/50 bg-destructive/10 p-3 flex items-start gap-3">
+          <div className="mt-4 rounded-lg border border-destructive/50 bg-destructive/10 p-3 flex items-start gap-3 animate-in fade-in-0 slide-in-from-top-2">
             <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
             <p className="text-sm text-destructive">{error}</p>
           </div>
@@ -210,15 +235,26 @@ export function MaintenanceFormDrawer({
               <Label htmlFor="clientId" className="text-foreground">
                 Cliente *
               </Label>
-              <ClientCombobox
-                value={clientId}
-                onValueChange={(value) => setValue("clientId", value, { shouldDirty: true })}
-                placeholder="Buscar cliente..."
-                allowCreate={true}
-                initialClientName={mode === "edit" && initialData ? initialData.client.name : undefined}
-              />
-              {getFieldError("clientId") && (
-                <p className="text-sm text-destructive flex items-center gap-1">
+              {mode === "edit" && initialData ? (
+                <>
+                  <input type="hidden" {...register("clientId")} value={initialData.clientId} />
+                  <Input
+                    id="clientId"
+                    value={initialData.client.name}
+                    disabled
+                    className="bg-muted border-border text-foreground cursor-not-allowed"
+                  />
+                </>
+              ) : (
+                <ClientCombobox
+                  value={clientId}
+                  onValueChange={(value) => setValue("clientId", value, { shouldDirty: true, shouldValidate: true })}
+                  placeholder="Buscar cliente..."
+                  allowCreate={true}
+                />
+              )}
+              {mode === "create" && getFieldError("clientId") && (
+                <p className="text-sm text-destructive flex items-center gap-1 animate-in fade-in-0 slide-in-from-top-1">
                   <AlertCircle className="h-3 w-3" />
                   {getFieldError("clientId")}
                 </p>
@@ -234,7 +270,7 @@ export function MaintenanceFormDrawer({
                 value={equipment || ""}
                 onChange={(e) => setValue("equipment", e.target.value, { shouldDirty: true })}
                 placeholder="Ex: Notebook Dell Inspiron 15"
-                className="bg-background border-border text-foreground"
+                className="bg-background border-border text-foreground transition-all focus:border-primary"
               />
             </div>
 
@@ -245,12 +281,12 @@ export function MaintenanceFormDrawer({
               <Input
                 id="serviceTitle"
                 value={serviceTitle || ""}
-                onChange={(e) => setValue("serviceTitle", e.target.value, { shouldDirty: true })}
+                onChange={(e) => setValue("serviceTitle", e.target.value, { shouldDirty: true, shouldValidate: true })}
                 placeholder="Ex: Troca de HD por SSD"
-                className="bg-background border-border text-foreground"
+                className="bg-background border-border text-foreground transition-all focus:border-primary"
               />
               {getFieldError("serviceTitle") && (
-                <p className="text-sm text-destructive flex items-center gap-1">
+                <p className="text-sm text-destructive flex items-center gap-1 animate-in fade-in-0 slide-in-from-top-1">
                   <AlertCircle className="h-3 w-3" />
                   {getFieldError("serviceTitle")}
                 </p>
@@ -264,62 +300,64 @@ export function MaintenanceFormDrawer({
               <Textarea
                 id="description"
                 value={description || ""}
-                onChange={(e) => setValue("description", e.target.value, { shouldDirty: true })}
+                onChange={(e) => setValue("description", e.target.value, { shouldDirty: true, shouldValidate: true })}
                 placeholder="Descreva o que foi consertado"
                 rows={4}
-                className="bg-background border-border text-foreground resize-none"
+                className="bg-background border-border text-foreground resize-none transition-all focus:border-primary"
               />
               {getFieldError("description") && (
-                <p className="text-sm text-destructive flex items-center gap-1">
+                <p className="text-sm text-destructive flex items-center gap-1 animate-in fade-in-0 slide-in-from-top-1">
                   <AlertCircle className="h-3 w-3" />
                   {getFieldError("description")}
                 </p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="value" className="text-foreground">
-                Valor *
-              </Label>
-              <Input
-                id="value"
-                type="number"
-                step="0.01"
-                value={value || 0}
-                onChange={(e) => setValue("value", e.target.valueAsNumber, { shouldDirty: true })}
-                placeholder="0.00"
-                className="bg-background border-border text-foreground"
-              />
-              {getFieldError("value") && (
-                <p className="text-sm text-destructive flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {getFieldError("value")}
-                </p>
-              )}
-            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="value" className="text-foreground">
+                  Valor *
+                </Label>
+                <Input
+                  id="value"
+                  type="number"
+                  step="0.01"
+                  value={value || 0}
+                  onChange={(e) => setValue("value", e.target.valueAsNumber, { shouldDirty: true, shouldValidate: true })}
+                  placeholder="0.00"
+                  className="bg-background border-border text-foreground transition-all focus:border-primary"
+                />
+                {getFieldError("value") && (
+                  <p className="text-sm text-destructive flex items-center gap-1 animate-in fade-in-0 slide-in-from-top-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {getFieldError("value")}
+                  </p>
+                )}
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="status" className="text-foreground">
-                Status
-              </Label>
-              <Select
-                value={status || "ABERTA"}
-                onValueChange={(value) => setValue("status", value as any, { shouldDirty: true })}
-              >
-                <SelectTrigger className="w-full bg-background border-border text-foreground">
-                  <SelectValue placeholder="Selecione o status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ABERTA">Aberta</SelectItem>
-                  <SelectItem value="CONCLUIDA">Concluída</SelectItem>
-                  <SelectItem value="CANCELADA">Cancelada</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <Label htmlFor="status" className="text-foreground">
+                  Status
+                </Label>
+                <Select
+                  value={status || "ABERTA"}
+                  onValueChange={(value) => setValue("status", value as any, { shouldDirty: true })}
+                >
+                  <SelectTrigger className="w-full bg-background border-border text-foreground transition-all focus:border-primary">
+                    <SelectValue placeholder="Selecione o status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ABERTA">Aberta</SelectItem>
+                    <SelectItem value="CONCLUIDA">Concluída</SelectItem>
+                    <SelectItem value="CANCELADA">Cancelada</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
           {/* Internal Costs Section */}
-          <div className="space-y-4 px-4 py-4">
+          <div className="space-y-4 px-4 py-4 bg-secondary/20">
             <div className="flex items-center justify-between border-b border-border pb-2">
               <h3 className="text-sm font-semibold text-foreground">Custos Internos</h3>
               <Button
@@ -327,7 +365,7 @@ export function MaintenanceFormDrawer({
                 variant="outline"
                 size="sm"
                 onClick={() => append({ name: "", value: 0 })}
-                className="h-8 border-border text-foreground hover:bg-secondary"
+                className="h-8 border-border text-foreground hover:bg-secondary transition-all"
               >
                 <Plus className="h-4 w-4 mr-1" />
                 Adicionar custo
@@ -335,7 +373,7 @@ export function MaintenanceFormDrawer({
             </div>
 
             {fields.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhum custo interno adicionado.</p>
+              <p className="text-sm text-muted-foreground italic">Nenhum custo interno adicionado.</p>
             ) : (
               <div className="space-y-3">
                 {fields.map((field, index) => (
@@ -344,7 +382,7 @@ export function MaintenanceFormDrawer({
                       <Input
                         {...register(`costs.${index}.name`)}
                         placeholder="Nome do custo"
-                        className="bg-background border-border text-foreground"
+                        className="bg-background border-border text-foreground transition-all focus:border-primary"
                       />
                     </div>
                     <div className="w-32 space-y-2">
@@ -353,7 +391,7 @@ export function MaintenanceFormDrawer({
                         step="0.01"
                         {...register(`costs.${index}.value`, { valueAsNumber: true })}
                         placeholder="0.00"
-                        className="bg-background border-border text-foreground"
+                        className="bg-background border-border text-foreground transition-all focus:border-primary"
                       />
                     </div>
                     <Button
@@ -361,7 +399,7 @@ export function MaintenanceFormDrawer({
                       variant="ghost"
                       size="sm"
                       onClick={() => remove(index)}
-                      className="h-10 w-10 p-0 text-destructive hover:bg-destructive/10"
+                      className="h-10 w-10 p-0 text-destructive hover:bg-destructive/10 transition-all"
                       aria-label="Remover custo"
                     >
                       <X className="h-4 w-4" />
@@ -375,7 +413,7 @@ export function MaintenanceFormDrawer({
                     </p>
                     {profitMargin > 0 && (
                       <span
-                        className={`text-xs px-2 py-1 rounded-full ${
+                        className={`text-xs px-2 py-1 rounded-full font-medium transition-colors ${
                           profitMargin >= 50
                             ? "bg-green-500/20 text-green-500"
                             : profitMargin >= 30
@@ -406,7 +444,7 @@ export function MaintenanceFormDrawer({
                   type="date"
                   value={startDate || ""}
                   onChange={(e) => setValue("startDate", e.target.value, { shouldDirty: true })}
-                  className="bg-background border-border text-foreground"
+                  className="bg-background border-border text-foreground transition-all focus:border-primary"
                 />
               </div>
 
@@ -419,7 +457,7 @@ export function MaintenanceFormDrawer({
                   type="date"
                   value={deliveryDate || ""}
                   onChange={(e) => setValue("deliveryDate", e.target.value, { shouldDirty: true })}
-                  className="bg-background border-border text-foreground"
+                  className="bg-background border-border text-foreground transition-all focus:border-primary"
                 />
                 <p className="text-xs text-muted-foreground">Obrigatório ao concluir</p>
               </div>
@@ -434,35 +472,42 @@ export function MaintenanceFormDrawer({
                 type="date"
                 value={nextMaintenanceDate || ""}
                 onChange={(e) => setValue("nextMaintenanceDate", e.target.value, { shouldDirty: true })}
-                className="bg-background border-primary/50 text-foreground"
+                className="bg-background border-primary/50 text-foreground transition-all focus:border-primary"
               />
               <p className="text-xs text-primary">Auto-calculado (+4 meses da entrega), mas pode ser editado</p>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-3 px-4 py-4 sticky bottom-0 bg-card border-t border-border">
+          <div className="flex gap-3 px-4 py-4 sticky bottom-0 bg-card border-t border-border shadow-lg">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={loading}
-              className="flex-1 border-border text-foreground hover:bg-secondary"
+              className="flex-1 border-border text-foreground hover:bg-secondary transition-all"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
-              disabled={loading || (mode === "edit" && !isDirty)}
-              className="flex-1 bg-primary text-primary-foreground hover:bg-accent disabled:opacity-50"
+              disabled={loading || showSuccess}
+              className="flex-1 bg-primary text-primary-foreground hover:bg-accent disabled:opacity-50 transition-all shadow-md"
             >
-              {loading
-                ? mode === "create"
-                  ? "Criando..."
-                  : "Salvando..."
-                : mode === "create"
-                  ? "Criar ordem"
-                  : "Salvar alterações"}
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <div className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                  {mode === "create" ? "Criando..." : "Salvando..."}
+                </span>
+              ) : showSuccess ? (
+                <span className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  Sucesso!
+                </span>
+              ) : mode === "create" ? (
+                "Criar ordem"
+              ) : (
+                "Salvar alterações"
+              )}
             </Button>
           </div>
         </form>
