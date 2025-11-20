@@ -28,7 +28,7 @@ export function FinancialChart({ data, granularity }: FinancialChartProps) {
   }
 
   return (
-    <div className="h-[400px] w-full rounded-lg border border-border bg-card p-4">
+    <div className="h-[400px] w-full rounded-lg border border-border bg-card p-4 py-4 pb-4 pt-8 pl-4">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={data}
