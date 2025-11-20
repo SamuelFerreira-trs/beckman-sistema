@@ -86,7 +86,7 @@ export default function FinanceiroPage() {
           <div className="grid gap-6 md:grid-cols-4">
             <div className="space-y-2">
               <Label htmlFor="startDate" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Data Início
+                Data Início (Abertura)
               </Label>
               <div className="relative">
                 <CalendarRange className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -101,7 +101,7 @@ export default function FinanceiroPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="endDate" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Data Fim
+                Data Fim (Abertura)
               </Label>
               <div className="relative">
                 <CalendarRange className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />

@@ -22,21 +22,18 @@ export async function POST(request: Request) {
     if (granularity === "year") datePart = "year"
 
     // Build the query
-    // We use COALESCE(delivery_date, opened_at) as the reference date
-    // We sum value for revenue
-    // We sum the values inside the costs JSONB array for costs
-
     let query = sql`
       SELECT
-        date_trunc(${datePart}, COALESCE(delivery_date, opened_at)) as date,
+        date_trunc(${datePart}, opened_at) as date,
         SUM(value) as revenue,
         SUM(
+          COALESCE(internal_cost, 0) + 
           (SELECT COALESCE(SUM((c->>'value')::numeric), 0) 
-           FROM jsonb_array_elements(costs) as c)
+           FROM jsonb_array_elements(COALESCE(costs, '[]'::jsonb)) as c)
         ) as costs
       FROM maintenance_orders
-      WHERE COALESCE(delivery_date, opened_at) >= ${start}
-        AND COALESCE(delivery_date, opened_at) <= ${end}
+      WHERE opened_at >= ${start}
+        AND opened_at <= ${end}
     `
 
     if (status === "CONCLUIDA") {
