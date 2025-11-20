@@ -62,30 +62,39 @@ export function FinancialChart({ data, granularity }: FinancialChartProps) {
               backgroundColor: "hsl(var(--card))",
               borderColor: "hsl(var(--border))",
               color: "hsl(var(--foreground))",
+              borderRadius: "var(--radius)",
+              boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
             }}
+            itemStyle={{ color: "hsl(var(--foreground))" }}
+            cursor={{ stroke: "hsl(var(--muted-foreground))", strokeWidth: 1, strokeDasharray: "4 4" }}
           />
-          <Legend />
+          <Legend wrapperStyle={{ paddingTop: "20px" }} />
           <Line
             type="monotone"
             dataKey="revenue"
             name="Receita"
-            stroke="#2563eb" // blue-600
-            strokeWidth={2}
-            activeDot={{ r: 8 }}
+            stroke="hsl(var(--primary))"
+            strokeWidth={3}
+            dot={{ r: 4, fill: "hsl(var(--primary))", strokeWidth: 0 }}
+            activeDot={{ r: 6, strokeWidth: 0 }}
           />
           <Line
             type="monotone"
             dataKey="costs"
             name="Custos"
-            stroke="#dc2626" // red-600
-            strokeWidth={2}
+            stroke="hsl(var(--destructive))"
+            strokeWidth={3}
+            dot={{ r: 4, fill: "hsl(var(--destructive))", strokeWidth: 0 }}
+            activeDot={{ r: 6, strokeWidth: 0 }}
           />
           <Line
             type="monotone"
             dataKey="netGain"
             name="Lucro Líquido"
-            stroke="#16a34a" // green-600
-            strokeWidth={2}
+            stroke="#22c55e" // green-500 for clear profit indication
+            strokeWidth={3}
+            dot={{ r: 4, fill: "#22c55e", strokeWidth: 0 }}
+            activeDot={{ r: 6, strokeWidth: 0 }}
           />
         </LineChart>
       </ResponsiveContainer>
