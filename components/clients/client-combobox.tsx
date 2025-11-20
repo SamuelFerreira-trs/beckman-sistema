@@ -175,7 +175,7 @@ export function ClientCombobox({
 
   const displayValue = search // Always display the local search state
   const showRecentClientsList = !search && !selectedClient && recentClients.length > 0
-  const listToDisplay = showRecentClientsList ? recentClients : filteredClients
+  const listToDisplay = filteredClients // Always show the full filtered list, even if showing recent clients
 
   return (
     <div className="relative">
@@ -262,7 +262,7 @@ export function ClientCombobox({
                     >
                       {recentClients.map((client) => (
                         <CommandItem
-                          key={client.id}
+                          key={`recent-${client.id}`}
                           value={client.id}
                           onSelect={() => handleSelect(client.id)}
                           className="px-3 py-2 mx-2 rounded-md cursor-pointer transition-colors duration-150 hover:bg-[#2E3135] aria-selected:bg-[#2E3135] data-[selected=true]:bg-[#2E3135]"
