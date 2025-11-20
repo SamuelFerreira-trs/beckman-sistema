@@ -1,5 +1,5 @@
 import type React from "react"
-import { Wrench, Users, FileText, LayoutDashboard } from "lucide-react"
+import { Wrench, Users, FileText, LayoutDashboard, TrendingUp } from "lucide-react"
 import Link from "next/link"
 import { GlobalSearch } from "@/components/search/global-search"
 import { Suspense } from "react"
@@ -38,6 +38,13 @@ export default function DashboardLayout({
           >
             <FileText className="h-5 w-5" />
             <span>Manutenções</span>
+          </Link>
+          <Link
+            href="/dashboard/financeiro"
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-foreground transition-colors hover:bg-secondary"
+          >
+            <TrendingUp className="h-5 w-5" />
+            <span>Financeiro</span>
           </Link>
         </nav>
       </aside>

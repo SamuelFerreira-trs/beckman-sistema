@@ -43,3 +43,10 @@ export interface MonthlySummary {
   netGain: number
   orderCount: number
 }
+
+export interface FinancialDataPoint {
+  date: string
+  revenue: number
+  costs: number
+  netGain: number
+}
